@@ -1,60 +1,80 @@
-const http = require('http')
-const qs = require('querystring')
-const rental = require('./rentalPrice')
+const http = require('http');
+const qs = require('querystring');
+const rental = require('./rentalPrice');
 
-const server = http.createServer(function(request, response) {
-    console.dir(request.param)
+const server = http.createServer(function (request, response) {
+  console.dir(request.param);
 
-    if (request.method == 'POST') {
-        console.log('POST')
-        var body = ''
-        request.on('data', function(data) {
-            body += data
-        })
+  if (request.method === 'POST') {
+    console.log('POST');
+    let body = '';
+    request.on('data', function (data) {
+      body += data;
+    });
 
-        request.on('end', function() {
-            const post = qs.parse(body)
-            console.log(post);
-            const result = rental.price(Number(post.age), Number(post.licence), Number(post.clazz), parseBool(post.acc), parseBool(post.acc2), parseBool(post.season))
-            console.log(result);
-            response.writeHead(200, {'Content-Type': 'text/html'})
-            response.end('Result: ' + result)
-        })
-    } else {
-        var html = `
-            <html>
-                <body>
-                    <form id="calcForm" method="post" action="http://localhost:3000">Driver: <br>
-                        <input type="number" name="age"/>
-                        <label for="html">Your age?</label><br>
-                        <input type="number" name="licence" />
-                        <label for="html">How long have you had your licence?</label><br>
-                        <input type="number" name="clazz" />
-                        <label for="html">Class of the car (1 to 5)</label><br>
-                        <input type=checkbox name="acc" />
-                        <label for="html">Have you caused accidents?</label><br>
-                        <input type=checkbox name="acc2" />
-                        <label for="html">Have you participated in any accidents?</label><br>
-                        <input type=checkbox name="season" />
-                        <label for="html">Is it high season?</label><br>
-                        <input type="submit" value="Add" />
-                    </form>
-                </body>
-            </html>`
-        response.writeHead(200, {'Content-Type': 'text/html'})
-        response.end(html)
-    }
+    request.on('end', function () {
+      const post = qs.parse(body);
+      console.log(post);
 
-    function parseBool(val) {
-        let updatedVal = false;
-        if (val == 'on') {
-            updatedVal = true;
-        }
-        return updatedVal;
-    }
-})
+      const driverAge = Number(post.driverAge);
+      const licenceHolding = Number(post.licenceHolding);
+      const carClass = Number(post.carClass);
+      const hasCausedAccidents = parseBool(post.violationAmount);
+      const hasParticipatedInAccidents = parseBool(post.innocentviolationAmount);
+      const isHighSeason = parseBool(post.season);
 
-const port = 3000
-const host = '127.0.0.1'
-server.listen(port, host)
-console.log(`Listening at http://${host}:${port}`)
+      const result = rental.calculatePrice(
+        driverAge,
+        licenceHolding,
+        carClass,
+        hasCausedAccidents,
+        hasParticipatedInAccidents,
+        isHighSeason
+      );
+
+      console.log(result);
+
+      response.writeHead(200, { 'Content-Type': 'text/html' });
+      response.end('Result: ' + result);
+    });
+  } else {
+    const html = `
+      <html>
+        <body>
+          <form id="calcForm" method="post" action="http://localhost:3000">
+            <label for="driverAge">Driver driverAge:</label>
+            <input type="number" id="driverAge" name="driverAge" required/><br>
+
+            <label for="licenceHolding">Years with driving licenceHolding:</label>
+            <input type="number" id="licenceHolding" name="licenceHolding" required/><br>
+
+            <label for="carClass">Car class (1-5):</label>
+            <input type="number" id="carClass" name="carClass" min="1" max="5" required/><br>
+
+            <label for="violationAmount">Have you caused any violationAmountidents in the last year?</label>
+            <input type="checkbox" id="violationAmount" name="violationAmount"/><br>
+
+            <label for="innocentviolationAmount">Have you participated (but not caused) in any violationAmountidents in the last year?</label>
+            <input type="checkbox" id="innocentviolationAmount" name="innocentviolationAmount"/><br>
+
+            <label for="season">Is it high season?</label>
+            <input type="checkbox" id="season" name="season"/><br>
+
+            <input type="submit" value="Calculate"/>
+          </form>
+        </body>
+      </html>`;
+
+    response.writeHead(200, { 'Content-Type': 'text/html' });
+    response.end(html);
+  }
+});
+
+function parseBool(val) {
+  return val === 'on';
+}
+
+const port = 3000;
+const host = '127.0.0.1';
+server.listen(port, host);
+console.log(`Listening at http://${host}:${port}`);
